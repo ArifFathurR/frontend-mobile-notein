@@ -7,9 +7,9 @@ import { Platform } from 'react-native';
  * - Fisik Device: Sesuaikan dengan IP laptop di jaringan WiFi yang sama, misal: 'http://192.168.1.10:8000/api'
  */
 export const API_BASE_URL = Platform.select({
-  android: 'http://10.0.2.2:8000/api',
-  ios: 'http://localhost:8000/api',
-  default: 'http://localhost:8000/api',
+  android: 'https://test2.cloudslabs.my.id/api/',
+  ios: 'https://test2.cloudslabs.my.id/api/',
+  default: 'https://test2.cloudslabs.my.id/api/',
 });
 
 export const TOKEN_STORAGE_KEY = 'notein_auth_token';

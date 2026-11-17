@@ -5,6 +5,7 @@ import { API_BASE_URL, TOKEN_STORAGE_KEY } from '@/constants/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
