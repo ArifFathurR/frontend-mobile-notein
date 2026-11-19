@@ -7,6 +7,7 @@ import {
   MoreVertical,
   Pencil,
   FileEdit,
+  NotebookPen,
 } from 'lucide-react-native';
 
 import { ApiNote, Category } from '@/types/api';
@@ -15,6 +16,8 @@ import { CategoryPills } from '@/components/note/CategoryPills';
 import { CreateNoteModal } from '@/components/note/CreateNoteModal';
 import { TXTnotes } from '@/components/note/TXTnotes';
 import { CategoryManageModal } from '@/components/note/CategoryManageModal';
+import { NoteActionBottomBar } from '@/components/note/NoteActionBottomBar';
+import { ConfirmDeleteModal } from '@/components/note/ConfirmDeleteModal';
 import { notesApi } from '@/api/notes.api';
 import { categoryApi } from '@/api/category.api';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +34,11 @@ export default function HomeScreen() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<ApiNote | null>(null);
+
+  // State untuk action long-press & delete
+  const [actionNote, setActionNote] = useState<ApiNote | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch Notes & Categories dari backend
   const fetchData = useCallback(async () => {
@@ -81,6 +89,7 @@ export default function HomeScreen() {
     description: string;
     id_categories?: number | null;
     create_at?: string;
+    background_path?: any;
   }) => {
     try {
       if (editingNote) {
@@ -88,17 +97,36 @@ export default function HomeScreen() {
           title: data.title,
           description: data.description,
           id_categories: data.id_categories,
+          create_at: data.create_at,
+          background_path: data.background_path,
         });
       } else {
         await notesApi.createNote({
           title: data.title,
           description: data.description,
           id_categories: data.id_categories,
+          create_at: data.create_at,
+          background_path: data.background_path,
         });
       }
       await fetchData();
     } catch (err) {
       console.warn('Gagal menyimpan note ke server:', err);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!actionNote) return;
+    setIsDeleting(true);
+    try {
+      await notesApi.deleteNote(actionNote.id);
+      setIsDeleteModalOpen(false);
+      setActionNote(null);
+      await fetchData();
+    } catch (err) {
+      console.warn('Gagal menghapus note dari server:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -117,7 +145,7 @@ export default function HomeScreen() {
           <Text className="text-2xl font-extrabold text-slate-900 tracking-tight">
             Notein
           </Text>
-          <Text className="text-xl">👑</Text>
+          <Text className="text-xl"><NotebookPen size="22" color="#34aaf4"/></Text>
         </View>
 
         {/* Action Icons */}
@@ -163,9 +191,14 @@ export default function HomeScreen() {
             notes={filteredNotes}
             refreshing={refreshing}
             onRefresh={onRefresh}
+            selectedNoteId={actionNote?.id}
             onSelectNote={(note) => {
+              setActionNote(null);
               setEditingNote(note);
               setIsEditorOpen(true);
+            }}
+            onLongPressNote={(note) => {
+              setActionNote(note);
             }}
           />
         )}
@@ -206,8 +239,31 @@ export default function HomeScreen() {
           categories={categories}
           onBack={() => setIsEditorOpen(false)}
           onSave={handleSaveTXTNote}
+          onDelete={() => {
+            setIsEditorOpen(false);
+            fetchData();
+          }}
         />
       </Modal>
+
+      {/* Note Action Bottom Bar (Archive, Trash, Move Folder, More) */}
+      <NoteActionBottomBar
+        visible={actionNote !== null && !isDeleteModalOpen}
+        onClose={() => setActionNote(null)}
+        onDelete={() => {
+          setIsDeleteModalOpen(true);
+        }}
+      />
+
+      {/* Confirm Delete Modal */}
+      <ConfirmDeleteModal
+        visible={isDeleteModalOpen}
+        loading={isDeleting}
+        onCancel={() => {
+          setIsDeleteModalOpen(false);
+        }}
+        onConfirm={handleConfirmDelete}
+      />
     </SafeAreaView>
   );
 }

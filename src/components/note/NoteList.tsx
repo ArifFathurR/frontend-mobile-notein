@@ -6,6 +6,8 @@ import { NoteItem } from './NoteItem';
 interface NoteListProps {
   notes: ApiNote[];
   onSelectNote?: (note: ApiNote) => void;
+  onLongPressNote?: (note: ApiNote) => void;
+  selectedNoteId?: number | null;
   sectionTitle?: string;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -14,6 +16,8 @@ interface NoteListProps {
 export const NoteList: React.FC<NoteListProps> = ({
   notes,
   onSelectNote,
+  onLongPressNote,
+  selectedNoteId,
   sectionTitle,
   refreshing = false,
   onRefresh,
@@ -30,7 +34,12 @@ export const NoteList: React.FC<NoteListProps> = ({
         data={notes}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
-          <NoteItem note={item} onPress={() => onSelectNote?.(item)} />
+          <NoteItem
+            note={item}
+            isSelected={selectedNoteId === item.id}
+            onPress={() => onSelectNote?.(item)}
+            onLongPress={() => onLongPressNote?.(item)}
+          />
         )}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}

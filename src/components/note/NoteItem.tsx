@@ -1,19 +1,28 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, ImageBackground } from 'react-native';
+import { View, Text, TouchableOpacity, ImageBackground } from 'react-native';
 import { Calendar, Clock, CheckSquare } from 'lucide-react-native';
 import { ApiNote } from '@/types/api';
+import { getImageUrl } from '@/constants/api';
 
 interface NoteItemProps {
   note: ApiNote;
   onPress?: () => void;
+  onLongPress?: () => void;
+  isSelected?: boolean;
 }
 
-export const NoteItem: React.FC<NoteItemProps> = ({ note, onPress }) => {
+export const NoteItem: React.FC<NoteItemProps> = ({
+  note,
+  onPress,
+  onLongPress,
+  isSelected = false,
+}) => {
   // Ambil tanggal YYYY-MM-DD dari create_at
   const dateStr = note.create_at ? note.create_at.split('T')[0] : '';
 
   const hasTasks = note.tasks && note.tasks.length > 0;
-  const hasBackground = !!note.background_path;
+  const backgroundUri = getImageUrl(note.background_path);
+  const hasBackground = !!backgroundUri;
 
   const cardContent = (
     <View className="flex-1 p-4">
@@ -95,10 +104,13 @@ export const NoteItem: React.FC<NoteItemProps> = ({ note, onPress }) => {
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={onPress}
-        className="overflow-hidden rounded-2xl mb-3 shadow-sm"
+        onLongPress={onLongPress}
+        className={`overflow-hidden rounded-2xl mb-3 shadow-sm ${
+          isSelected ? 'border-2 border-blue-600 scale-[0.98]' : ''
+        }`}
       >
         <ImageBackground
-          source={{ uri: note.background_path! }}
+          source={{ uri: backgroundUri! }}
           className="flex-row overflow-hidden rounded-2xl"
           imageStyle={{ borderRadius: 16 }}
           resizeMode="cover"
@@ -117,7 +129,10 @@ export const NoteItem: React.FC<NoteItemProps> = ({ note, onPress }) => {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      className="flex-row overflow-hidden rounded-2xl bg-[#EEF4FF] mb-3 shadow-sm border border-blue-50/50"
+      onLongPress={onLongPress}
+      className={`flex-row overflow-hidden rounded-2xl bg-[#EEF4FF] mb-3 shadow-sm border ${
+        isSelected ? 'border-2 border-blue-600 scale-[0.98]' : 'border-blue-50/50'
+      }`}
     >
       {/* Blue left indicator stripe */}
       <View className="w-2.5 bg-[#2563EB]" />

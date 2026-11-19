@@ -34,8 +34,11 @@ const MONTH_NAMES = [
 ];
 
 export default function CalendarScreen() {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 10, 1)); // November 2026 default atau bulan aktif
-  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDate());
+  const today = new Date();
+  const [currentDate, setCurrentDate] = useState<Date>(
+    new Date(today.getFullYear(), today.getMonth(), 1)
+  );
+  const [selectedDay, setSelectedDay] = useState<number>(today.getDate());
   const [notes, setNotes] = useState<ApiNote[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -73,17 +76,17 @@ export default function CalendarScreen() {
   }, [fetchData]);
 
   const prevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
 
   const nextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
+    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const goToToday = () => {
-    const today = new Date();
-    setCurrentDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    setSelectedDay(today.getDate());
+    const now = new Date();
+    setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedDay(now.getDate());
   };
 
   // Map notes by day of month (YYYY-MM-DD)
@@ -91,17 +94,31 @@ export default function CalendarScreen() {
     const map: { [day: number]: ApiNote[] } = {};
 
     notes.forEach((note) => {
-      // Ambil tanggal dari create_at (format YYYY-MM-DD atau ISO string)
-      const dateString = note.create_at || note.background_path;
-      if (!dateString) return;
+      if (!note.create_at) return;
 
-      const d = new Date(dateString);
-      if (isNaN(d.getTime())) return;
+      // Coba parsing langsung string YYYY-MM-DD
+      const datePart = note.create_at.split('T')[0];
+      const parts = datePart.split('-');
+      if (parts.length === 3) {
+        const noteYear = parseInt(parts[0], 10);
+        const noteMonth = parseInt(parts[1], 10) - 1; // 0-indexed month
+        const noteDay = parseInt(parts[2], 10);
 
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        const dayNum = d.getDate();
-        if (!map[dayNum]) map[dayNum] = [];
-        map[dayNum].push(note);
+        if (noteYear === year && noteMonth === month) {
+          if (!map[noteDay]) map[noteDay] = [];
+          map[noteDay].push(note);
+          return;
+        }
+      }
+
+      // Fallback Date object parsing
+      const d = new Date(note.create_at);
+      if (!isNaN(d.getTime())) {
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          const dayNum = d.getDate();
+          if (!map[dayNum]) map[dayNum] = [];
+          map[dayNum].push(note);
+        }
       }
     });
 
@@ -179,7 +196,7 @@ export default function CalendarScreen() {
         .createNote({
           title: 'New Checklist',
           description: '[]',
-          background_path: formatYMD(targetDate),
+          create_at: formatYMD(targetDate),
         })
         .then(() => fetchData());
     }
@@ -190,6 +207,7 @@ export default function CalendarScreen() {
     description: string;
     id_categories?: number | null;
     create_at?: string;
+    background_path?: any;
   }) => {
     try {
       if (editingNote) {
@@ -197,12 +215,16 @@ export default function CalendarScreen() {
           title: data.title,
           description: data.description,
           id_categories: data.id_categories,
+          create_at: data.create_at,
+          background_path: data.background_path,
         });
       } else {
         await notesApi.createNote({
           title: data.title,
           description: data.description,
           id_categories: data.id_categories,
+          create_at: data.create_at,
+          background_path: data.background_path,
         });
       }
       await fetchData();
@@ -217,7 +239,7 @@ export default function CalendarScreen() {
       <View className="flex-row items-center justify-between px-5 py-3">
         {/* Navigasi Bulan */}
         <View className="flex-row items-center gap-2">
-          <TouchableOpacity onPress={prevMonth} className="p-1 active:opacity-60">
+          <TouchableOpacity onPress={prevMonth} activeOpacity={0.6} className="p-1">
             <ChevronLeft size={22} color="#2563EB" />
           </TouchableOpacity>
 
@@ -225,7 +247,7 @@ export default function CalendarScreen() {
             {MONTH_NAMES[month]} {year}
           </Text>
 
-          <TouchableOpacity onPress={nextMonth} className="p-1 active:opacity-60">
+          <TouchableOpacity onPress={nextMonth} activeOpacity={0.6} className="p-1">
             <ChevronRight size={22} color="#2563EB" />
           </TouchableOpacity>
         </View>
@@ -235,7 +257,8 @@ export default function CalendarScreen() {
           {/* Ikon hari ini [14] */}
           <TouchableOpacity
             onPress={goToToday}
-            className="flex-row items-center border border-blue-600 rounded-lg px-1.5 py-0.5 active:opacity-70"
+            activeOpacity={0.7}
+            className="flex-row items-center border border-blue-600 rounded-lg px-1.5 py-0.5"
           >
             <CalendarIcon size={14} color="#2563EB" />
             <Text className="text-[11px] font-bold text-blue-600 ml-1">
@@ -244,7 +267,7 @@ export default function CalendarScreen() {
           </TouchableOpacity>
 
           {/* Month selector dropdown */}
-          <TouchableOpacity className="flex-row items-center gap-1 active:opacity-70">
+          <TouchableOpacity activeOpacity={0.7} className="flex-row items-center gap-1">
             <Text className="text-base font-bold text-slate-800">Month</Text>
             <ChevronDown size={18} color="#2563EB" />
           </TouchableOpacity>
@@ -287,9 +310,8 @@ export default function CalendarScreen() {
                     cell.isCurrentMonth && cell.day === selectedDay;
 
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={`cell-${wIndex}-${cIndex}`}
-                      activeOpacity={0.7}
                       onPress={() => {
                         if (cell.isCurrentMonth) {
                           setSelectedDay(cell.day);
@@ -303,9 +325,7 @@ export default function CalendarScreen() {
                       {/* Day Number */}
                       <View
                         className={`w-7 h-7 rounded-full items-center justify-center ${
-                          isCurrentDay
-                            ? 'bg-[#2563EB] shadow-sm'
-                            : ''
+                          isCurrentDay ? 'bg-[#2563EB]' : ''
                         }`}
                       >
                         <Text
@@ -327,11 +347,13 @@ export default function CalendarScreen() {
                           {cell.notes.slice(0, 2).map((n) => (
                             <TouchableOpacity
                               key={n.id}
-                              onPress={() => {
+                              activeOpacity={0.8}
+                              onPress={(e) => {
+                                e.stopPropagation();
                                 setEditingNote(n);
                                 setIsEditorOpen(true);
                               }}
-                              className="bg-[#60A5FA] rounded-md px-1 py-0.5 w-full active:opacity-80 shadow-xs"
+                              className="bg-[#60A5FA] rounded-md px-1 py-0.5 w-full shadow-sm"
                             >
                               <Text
                                 numberOfLines={1}
@@ -344,10 +366,12 @@ export default function CalendarScreen() {
                           {/* "+N more" badge jika notes > 2 */}
                           {cell.notes.length > 2 && (
                             <TouchableOpacity
-                              onPress={() =>
-                                setDayNotesModal({ day: cell.day, notes: cell.notes })
-                              }
-                              className="bg-slate-200 rounded-md px-1 py-0.5 w-full active:opacity-70"
+                              activeOpacity={0.7}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                setDayNotesModal({ day: cell.day, notes: cell.notes });
+                              }}
+                              className="bg-slate-200 rounded-md px-1 py-0.5 w-full"
                             >
                               <Text className="text-[9px] font-semibold text-slate-600 text-center leading-tight">
                                 +{cell.notes.length - 2} more
@@ -356,7 +380,7 @@ export default function CalendarScreen() {
                           )}
                         </View>
                       )}
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -393,6 +417,10 @@ export default function CalendarScreen() {
           defaultDate={new Date(year, month, selectedDay)}
           onBack={() => setIsEditorOpen(false)}
           onSave={handleSaveTXTNote}
+          onDelete={() => {
+            setIsEditorOpen(false);
+            fetchData();
+          }}
         />
       </Modal>
 
@@ -423,7 +451,8 @@ export default function CalendarScreen() {
               </Text>
               <TouchableOpacity
                 onPress={() => setDayNotesModal(null)}
-                className="p-1.5 rounded-full bg-slate-100 active:bg-slate-200"
+                activeOpacity={0.7}
+                className="p-1.5 rounded-full bg-slate-100"
               >
                 <X size={18} color="#64748B" />
               </TouchableOpacity>
@@ -437,13 +466,13 @@ export default function CalendarScreen() {
               showsVerticalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  activeOpacity={0.75}
+                  activeOpacity={0.7}
                   onPress={() => {
                     setDayNotesModal(null);
                     setEditingNote(item);
                     setIsEditorOpen(true);
                   }}
-                  className="flex-row items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 active:bg-blue-50"
+                  className="flex-row items-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-4"
                 >
                   <View className="w-9 h-9 rounded-xl bg-blue-100 items-center justify-center">
                     <FileText size={18} color="#2563EB" />

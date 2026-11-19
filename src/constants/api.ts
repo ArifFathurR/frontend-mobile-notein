@@ -13,3 +13,24 @@ export const API_BASE_URL = Platform.select({
 });
 
 export const TOKEN_STORAGE_KEY = 'notein_auth_token';
+
+/**
+ * Helper untuk mengubah relative path gambar dari backend menjadi full URL yang valid.
+ */
+export const getImageUrl = (path: string | null | undefined): string | null => {
+  if (!path) return null;
+  // Abaikan jika ternyata string tanggal
+  if (/^\d{4}-\d{2}-\d{2}/.test(path)) return null;
+  if (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('file://') ||
+    path.startsWith('data:') ||
+    path.startsWith('content://')
+  ) {
+    return path;
+  }
+  const baseHost = (API_BASE_URL || '').replace(/\/api\/?$/, '');
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${baseHost}/${cleanPath}`;
+};
